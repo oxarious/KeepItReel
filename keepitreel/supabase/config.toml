@@ -1,0 +1,5 @@
+project_id = "clearfeed"
+
+[functions.analyze]
+verify_jwt = false
+# The function validates the user's bearer token through Supabase Auth itself.

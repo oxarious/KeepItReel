@@ -1,0 +1,11 @@
+node_modules/
+.env*
+!.env.example
+.output/
+.wxt/
+.wrangler/
+.openai/
+test-results/
+playwright-report/
+*.log
+*.zip

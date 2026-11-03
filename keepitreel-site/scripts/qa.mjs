@@ -1,0 +1,90 @@
+// Development-only verification. Uses the existing extension's installed Playwright.
+import { chromium } from '../../keepitreel/node_modules/@playwright/test/index.mjs';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+const config = JSON.parse(readFileSync('site.config.json', 'utf8'));
+import { mkdir, writeFile } from 'node:fs/promises';
+await mkdir('qa', { recursive: true });
+const browser = await chromium.launch({ headless: true });
+const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, colorScheme: 'light', permissions: ['clipboard-read', 'clipboard-write'] });
+const page = await context.newPage();
+const errors = [], requests = [], checks = [];
+page.on('pageerror', e => errors.push(e.message));
+page.on('request', r => { if (!r.url().startsWith('http://127.0.0.1:4178')) requests.push(r.url()); });
+const check = (name, result) => { assert.ok(result, name); checks.push(name); };
+try {
+  await page.goto('http://127.0.0.1:4178'); await page.evaluate(() => document.fonts.ready);
+  check('Atkinson loaded', await page.evaluate(() => document.fonts.check('16px Atkinson')));
+  await page.screenshot({ path: 'qa/desktop-light.png', fullPage: true });
+  await page.screenshot({ path: 'qa/hero-light.png' });
+  await page.locator('#how-it-works').scrollIntoViewIfNeeded();
+  await page.getByRole('button', { name: 'Hide video', exact: true }).click();
+  check('Hide removes demo video', await page.getByRole('heading', { name: 'Example video hidden' }).isVisible());
+  await page.getByRole('button', { name: 'Undo last action' }).click();
+  check('Undo restores demo video', await page.getByRole('heading', { name: "A mountain town that doesn't exist" }).isVisible());
+  await page.getByRole('button', { name: 'Block creator', exact: true }).click();
+  check('Block creator works', await page.getByRole('heading', { name: 'Example creator blocked' }).isVisible());
+  await page.getByRole('button', { name: 'Undo last action' }).click();
+  await page.getByLabel('Toolbar only', { exact: true }).check();
+  check('Toolbar-only hides page monkey', await page.locator('.item-monkey').isHidden());
+  await page.locator('#demo-toolbar').click();
+  check('Toolbar explains category count', (await page.locator('#demo-status').textContent()).includes('distinct warning type'));
+  await page.getByRole('tab', { name: 'Gmail', exact: true }).click();
+  check('Gmail secret request is red', (await page.locator('#analysis-level').getAttribute('class')).includes('red'));
+  await page.getByLabel('Try another example').selectOption('payment');
+  check('Gift card pattern is amber', (await page.locator('#analysis-level').getAttribute('class')).includes('amber'));
+  await page.getByRole('button', { name: 'Dismiss warning', exact: true }).click();
+  check('Dismiss is reversible', await page.getByRole('button', { name: 'Show warning again' }).isVisible());
+  await page.getByRole('button', { name: 'Show warning again' }).click();
+  await page.getByRole('button', { name: 'Report incorrect warning' }).click();
+  check('Demo report does not pretend to send', (await page.locator('#demo-status').textContent()).includes('nothing was reported'));
+  await page.getByLabel('Try another example').selectOption('ordinary');
+  check('Ordinary message clears badge', await page.locator('#demo-count').isHidden());
+  check('Neutral inbox preview', (await page.locator('.item-monkey').getAttribute('class')).includes('neutral'));
+  await page.getByRole('tab', { name: 'Outlook', exact: true }).click();
+  check('Outlook scenario works', await page.getByText('Focused inbox', { exact: true }).count() > 0 || (await page.locator('.mail-heading').textContent()).includes('Focused inbox'));
+  await page.getByRole('tab', { name: 'Outlook', exact: true }).focus();
+  await page.keyboard.press('ArrowLeft');
+  check('Keyboard switches tabs', await page.getByRole('tab', { name: 'Gmail', exact: true }).getAttribute('aria-selected') === 'true');
+  await page.getByRole('button', { name: 'Share feedback or an idea' }).click();
+  await page.getByLabel('Your message', { exact: true }).fill('I would like a clearer explanation of the toolbar badge.');
+  await page.getByRole('button', { name: 'Copy feedback', exact: true }).click();
+  await page.waitForFunction(() => document.querySelector('#feedback-status').textContent.startsWith('Copied'));
+  check('Feedback copied honestly', (await page.evaluate(() => navigator.clipboard.readText())).includes('clearer explanation'));
+  await page.keyboard.press('Escape');
+  check('Dialog returns focus', await page.getByRole('button', { name: 'Share feedback or an idea' }).evaluate(el => el === document.activeElement));
+  check('Install links use the public listing', await page.locator('[data-install]').evaluateAll((nodes, url) => nodes.length > 0 && nodes.every(n => n.href === url && n.target === '_blank' && n.textContent.includes('Add to Chrome')), config.chromeStoreUrl));
+  check('Support links point to the correct external page', await page.locator('[data-support]').evaluateAll(nodes => nodes.every(n => n.href === 'https://buymeacoffee.com/keepitreel' && n.target === '_blank')));
+  await page.getByText('Does green mean an email is safe?', { exact: true }).click();
+  check('FAQ opens', await page.locator('details[open]').count() === 1);
+  await page.getByRole('button', { name: 'Switch to dark theme' }).click();
+  await page.evaluate(() => scrollTo(0, 0));
+  await page.screenshot({ path: 'qa/hero-dark.png' });
+  await page.reload(); check('Theme persisted', await page.locator('html').getAttribute('data-theme') === 'dark');
+  await page.getByRole('button', { name: 'Switch to light theme' }).click();
+  for (const width of [320, 390, 768, 1024, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    check(`No horizontal overflow at ${width}`, await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    if (width === 390) { await page.evaluate(() => scrollTo(0,0)); await page.screenshot({ path: 'qa/mobile-light.png', fullPage: true }); }
+  }
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  for (const route of ['/guide.html', '/privacy.html', '/updates.html', '/404.html']) {
+    const response = await page.goto('http://127.0.0.1:4178' + route);
+    check(`${route} loads`, response.status() === 200);
+    await page.setViewportSize({ width: 390, height: 850 });
+    check(`${route} mobile fits`, await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    check(`${route} has one main heading`, await page.locator('h1').count() === 1);
+    check(`${route} install link uses public listing`, await page.locator('[data-install]').first().getAttribute('href') === config.chromeStoreUrl);
+    check(`${route} has no stale launch notice`, !/not yet published|release in preparation|no public Chrome Web Store listing/i.test(await page.locator('main').innerText()));
+  }
+  const nojs = await browser.newContext({ javaScriptEnabled: false, viewport: { width:390, height:850 } });
+  const staticPage = await nojs.newPage(); await staticPage.goto('http://127.0.0.1:4178');
+  check('No-JS page has useful content', await staticPage.getByRole('heading', { name:'Your feed. Your call.' }).isVisible());
+  check('No-JS install link works', await staticPage.locator('[data-install]').first().getAttribute('href') === config.chromeStoreUrl);
+  check('No-JS support link works', await staticPage.locator('[data-support]').first().getAttribute('href') === config.buyMeACoffeeUrl);
+  await nojs.close();
+  check('No page errors', errors.length === 0);
+  check('No external requests', requests.length === 0);
+  console.log(JSON.stringify({ checks, count:checks.length, errors, externalRequests:requests },null,2));
+  await writeFile('qa/report.json', JSON.stringify({ checks, count:checks.length, errors, externalRequests:requests },null,2));
+} finally { await browser.close(); }

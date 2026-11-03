@@ -1,0 +1,13 @@
+@font-face{font-family:"KeepItReel Atkinson";src:url('../assets/fonts/atkinson-latin.woff2') format('woff2');font-weight:200 800;font-style:normal;font-display:swap}
+:root{font-family:"KeepItReel Atkinson","Segoe UI",system-ui,sans-serif;font-size:100%;font-size-adjust:from-font}
+body{font-family:inherit;font-size:.875rem;line-height:1.5}
+:is(h1,h2,h3,.stats-row strong,.popup-stats strong,.empty-state h3,.editorial-panel h2){font-family:inherit}
+:is(h1,h2,h3){font-weight:600}
+.popup{line-height:1.25}
+.popup .platform-row{padding:.5rem 0}
+.popup-stats strong{font-weight:500}
+.popup-protection-actions{display:flex;align-items:center;justify-content:space-between;gap:.75rem}
+.popup-visibility{display:flex;align-items:center;gap:.5rem;font-size:.6875rem;color:var(--muted)}
+.popup .protection-status .popup-protection-actions button{margin-bottom:0}
+.popup-protection-actions .toggle{width:2rem;min-width:2rem;height:1.5rem;padding:.1875rem}
+.popup-protection-actions .toggle.is-on span{transform:translateX(.5625rem)}

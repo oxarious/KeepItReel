@@ -1,0 +1,43 @@
+{
+  "name": "keepitreel",
+  "private": true,
+  "version": "0.3.21",
+  "type": "module",
+  "packageManager": "pnpm@11.25.0",
+  "engines": {
+    "node": ">=24",
+    "pnpm": ">=11"
+  },
+  "scripts": {
+    "dev": "wxt",
+    "build": "wxt build",
+    "zip": "wxt zip",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p supabase/tsconfig.json",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "verify:beta": "node scripts/verify-beta.mjs",
+    "release:check": "pnpm typecheck && pnpm test && pnpm build && pnpm verify:release && pnpm test:e2e",
+    "postinstall": "wxt prepare",
+    "verify:release": "node scripts/verify-beta.mjs"
+  },
+  "dependencies": {
+    "@mozilla/readability": "^0.6.0",
+    "@supabase/supabase-js": "^2.99.0",
+    "lucide-react": "^0.468.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "tldts": "^7.4.19"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.3.0",
+    "@playwright/test": "1.64.1",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@wxt-dev/module-react": "1.2.2",
+    "jsdom": "^27.0.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0",
+    "wxt": "0.21.5"
+  }
+}

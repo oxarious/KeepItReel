@@ -1,6 +1,6 @@
 # KeepItReel privacy policy
 
-Effective date: 29 October 2026. Extension release: 0.3.21.
+Prepared 4 November 2026 for extension release 0.4.0. Candidate privacy inventory; publish these technical additions with the next extension update. The currently published 0.3.21 policy is dated 29 October 2026.
 Publisher and contact for personal-data requests: Oscar Sommerfors, Sweden.
 Email: oscar.sommerfors@gmail.com
 Website: https://keepitreel.pages.dev/
@@ -16,8 +16,8 @@ Checks skip recognised forms/editors, selected sensitive pages and excluded doma
 
 ## Local storage
 
-- Preferences, including corner-logo visibility, source rules and excluded domains remain until removed/reset or uninstalled.
-- Optional filtering history is enabled initially and stores up to 100 item titles, URLs, creators, reasons and timestamps. It has no time-based deletion and is not a complete browsing history. You can disable or clear it.
+- Preferences, including corner-logo visibility, source rules, topic filters, rule expiry timestamps, setup completion and excluded domains remain until removed/reset or uninstalled. Up to 100 topic filters store user-entered phrases, platform scope, random IDs and optional expiry times. Expiry stops a rule from matching but does not delete it. Topic checks inspect supported YouTube titles and TikTok captions locally; the setup practice card does not save rules.
+- Optional filtering history is enabled initially and stores up to 100 item titles, URLs, creators, reasons (including a matched topic phrase) and timestamps. It has no time-based deletion and is not a complete browsing history. You can disable or clear it.
 - Up to 500 observed disclosure records include platform/item identifiers, labels and times. Records older than 30 days are ignored and pruned on later filtering events, or removed using Forget cached disclosures. Physical deletion is not guaranteed at exactly 30 days while idle.
 - Up to 20 recent creator Undo entries store the affected creator rule and any previous rule in browser session storage. Entries are consumed by Undo, invalidated by later edits to that creator, removed on reset or cleared when the browser session ends. They contain no email bodies or page text.
 - Spam comparison data holds up to 200 normalized title/caption samples, at most 4,000 characters each, with item/creator identifiers in the current page memory. Samples expire from matching after 15 minutes and are pruned on later checks; closing/reloading the page or disabling spam checks clears this comparison memory. No additional caption archive or spam score is written to browser storage. Existing optional filtering history still records item titles; on TikTok the title may be derived from its caption and is limited to 250 characters.
@@ -29,7 +29,7 @@ Checks skip recognised forms/editors, selected sensitive pages and excluded doma
 
 ## Exports and support
 
-Settings exports contain preferences and source rules. Feedback exports contain product version, category, warning codes, coarse browser/OS information, feature/permission flags and any voluntary note. They do not automatically include URLs, page/email text, screenshots, history, source lists or account identifiers. Review the exact preview and remove personal information from your note.
+Settings exports contain preferences, source rules and topic rules, including user-entered phrases and expiry timestamps. Setup completion is not exported. Feedback exports contain product version, category, warning codes, coarse browser/OS information, feature/permission flags and any voluntary note. They do not automatically include URLs, page/email text, screenshots, history, source lists or account identifiers. Review the exact preview and remove personal information from your note.
 
 Nothing is sent when you preview or download feedback. If you share a file or contact support, we receive what you send plus information from that service, such as your email address. Support correspondence is handled through Gmail (Google). We delete identifiable support messages and attachments within 90 days after resolving the issue and retain non-identifying technical bug summaries as needed. A specific legal obligation or unresolved legal claim may require restricted retention for longer; only the information necessary for that purpose is retained.
 
@@ -37,7 +37,7 @@ Downloaded files remain where saved until you delete them. Uninstalling does not
 
 ## Control, network activity and deletion
 
-Privacy & data lets you clear/disable history, forget cached disclosures, export preferences or reset. Your lists lets you remove source rules. Web & message protection lets you pause checks, exclude sites or revoke optional access. Chrome extension settings lets you remove access or uninstall. Uninstall removes associated browser storage; exports/support correspondence require separate deletion. Contact oscar.sommerfors@gmail.com for requests concerning information you shared with support.
+Privacy & data lets you clear/disable history, forget cached disclosures, export preferences or reset. Your lists lets you remove source rules; Topic filters lets you remove saved phrases. Web & message protection lets you pause checks, exclude sites or revoke optional access. Chrome extension settings lets you remove access or uninstall. Uninstall removes associated browser storage; exports/support correspondence require separate deletion. Contact oscar.sommerfors@gmail.com for requests concerning information you shared with support.
 
 URL checks parse addresses locally using a bundled public-suffix database. No reputation lookup or redirect-following request is made. Continue to link makes an ordinary visit; intermediaries and the destination can receive that visit. Websites make their own requests independently. Media playback changes can be observable to a platform. Chrome manages distribution/updates under Google's policies.
 

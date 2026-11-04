@@ -6,6 +6,7 @@ import { accessOrigins, syncProtectionScripts } from '../lib/protection-access';
 import { sanitizeFeedbackContext } from '../lib/feedback';
 import { blockCreator, undoCreator, clearCreatorUndos, type CreatorUndos } from '../lib/creator-undo';
 import { receiveToolbar, toolbarSummary, clearToolbar, refreshToolbar } from '../lib/toolbar-background';
+import { normalizePhrase, normalizeTopic, ruleIsActive, validateExpiry } from '../lib/filter-rules';
 
 export default defineBackground(() => {
   let queue: Promise<unknown> = Promise.resolve();
@@ -53,6 +54,18 @@ export default defineBackground(() => {
       const a = message as Action;
       switch (a.type) {
         case 'get': return state;
+        case 'completeSetup': state.setupCompleted = true; break;
+        case 'topicRule': {
+          const rule = normalizeTopic(a.rule);
+          if (state.topicRules.some(existing => existing.id === rule.id)) throw new Error('This topic filter already exists.');
+          if (state.topicRules.some(existing => ruleIsActive(existing) && existing.platform === rule.platform && normalizePhrase(existing.phrase) === normalizePhrase(rule.phrase))) {
+            throw new Error('This phrase is already filtered on the selected platform.');
+          }
+          if (state.topicRules.length >= 100) throw new Error('Remove an old topic filter before adding another. The limit is 100.');
+          state.topicRules.push(rule);
+          break;
+        }
+        case 'removeTopic': state.topicRules = state.topicRules.filter(rule => rule.id !== a.id); break;
         case 'settings': {
           const p = a.patch;
           for (const key of ['enabled', 'filterLabels', 'spamChecks', 'hideSuspicious', 'autoSkip', 'historyEnabled', 'showPageButton'] as const) if (typeof p[key] === 'boolean') state.settings[key] = p[key]!;
@@ -92,7 +105,8 @@ export default defineBackground(() => {
           const key = normalizeCreator(a.rule.platform, a.rule.key);
           state.rules = state.rules.filter(r => !(r.platform === a.rule.platform && r.key === key));
           if (state.rules.length >= 1000) throw new Error('Your list has reached 1,000 entries.');
-          state.rules.push({ ...a.rule, key, name: String(a.rule.name).slice(0, 120) });
+          const expiresAt = a.rule.action === 'block' ? validateExpiry(a.rule.expiresAt) : undefined;
+          state.rules.push({ platform: a.rule.platform, action: a.rule.action, key, name: String(a.rule.name).slice(0, 120), ...(expiresAt === undefined ? {} : { expiresAt }) });
           await browser.storage.session.set({ creatorUndo: clearCreatorUndos(await readUndos(), a.rule.platform, key) });
           break;
         }

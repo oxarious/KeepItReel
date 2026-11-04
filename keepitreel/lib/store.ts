@@ -1,9 +1,11 @@
 import { browser } from 'wxt/browser';
-import { hydrate, type State, type Rule, type Settings, type Item } from './model';
+import { hydrate, type State, type Rule, type Settings, type Item, type TopicRule } from './model';
 export type Action =
   | { type: 'get' } | { type: 'settings'; patch: Partial<Settings> }
   | { type: 'sitePause'; host: string; paused: boolean }
-  | { type: 'creatorBlock'; platform: 'youtube' | 'tiktok'; key: string; name: string; token: string }
+  | { type: 'creatorBlock'; platform: 'youtube' | 'tiktok'; key: string; name: string; token: string; expiresAt?: number }
+  | { type: 'topicRule'; rule: TopicRule } | { type: 'removeTopic'; id: string }
+  | { type: 'completeSetup' }
   | { type: 'undoCreator'; token: string }
   | { type: 'rule'; rule: Rule } | { type: 'removeRule'; platform: string; key: string }
   | { type: 'record'; item: Item; reason: string } | { type: 'clearHistory' }

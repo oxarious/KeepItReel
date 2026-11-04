@@ -1,3 +1,21 @@
+# Release status
+
+## 0.4.0 candidate — 4 November 2026
+
+The candidate adds topic filters, timed rules and guided setup. It is not submitted or published. The owner confirmed 0.3.21 was published on 30 October 2026; its existing listing is https://chromewebstore.google.com/detail/bhecamledlmaagepcijeipoldlijiioi.
+
+Before updating that listing:
+
+1. Run the full release check and the manual acceptance steps in DEVELOPMENT.md, especially current YouTube/Shorts/TikTok layouts and email regressions.
+2. Publish the new local-storage/topic-filter disclosures from PRIVACY.md to the website's privacy page. Keep the confirmed publisher identity and support retention unchanged. The website source remains on 0.3.21 until this coordinated update.
+3. Package with scripts/package-release.ps1. Upload the versioned extension ZIP to the existing store item. Do not upload a website ZIP or create a second listing.
+4. Update listing/reviewer instructions for Topic filters, Your lists durations and Getting started. There are no new permissions or cloud services.
+5. Submit after reviewing the candidate. Only describe it as live after Chrome approval/publication. Test a same-ID update preserves preferences and new expiry dates.
+
+## Historical 0.3.21 submission instructions
+
+The following preparation record predates approval. Its statements that the item is not yet published and that links are unconnected are historical, not the current public status.
+
 # Submit KeepItReel 0.3.21 to Chrome
 
 Prepared 29 October 2026. This is a free public early-development release. It has not been submitted, reviewed or approved by Google.

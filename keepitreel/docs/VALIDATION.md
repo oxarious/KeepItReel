@@ -1,3 +1,28 @@
+# Release validation — 0.4.0 candidate
+
+Date: 4 November 2026. Environment: Windows, Node 24, pnpm 11.25.0, isolated Chromium profiles.
+
+`pnpm release:check` passed on the final candidate source:
+
+- TypeScript: application and retained Supabase source checks passed.
+- Unit tests: **132 passed in 13 files**, including 21 new phrase, expiry, migration and Undo cases.
+- Production build: WXT Chrome Manifest V3, version 0.4.0.
+- Package audit: **25 packaged files**, required permissions unchanged, local-only CSP, no retired integration or cloud client.
+- Browser tests: **67 passed**, including eight new preference/setup tests. Existing Gmail/Outlook, website permission, link-review, toolbar, source-control and Undo tests passed.
+- Visual review: dark topic settings at 720px and the dark YouTube analysis duration control were inspected from browser screenshots. Existing narrow-panel and theme regressions passed.
+
+New browser cases cover topic add/explanation/export/Undo, idle expiry for topic and creator rules, timed creator blocking, dismiss-versus-topic precedence, setup without optional permission grants, practice-state isolation, narrow dark settings, active Shorts/TikTok scope, YouTube description exclusion and serialized concurrent edits.
+
+Tests caught and resolved a shared mutable creator-Undo snapshot, dark duration-select contrast, stale test expectations for the new version/confirmation copy, and missing semantics in the new fictional Shorts fixture. The final run completed with zero failures.
+
+## Limits and release status
+
+This is automated fixture coverage, not a fresh review of personal mailboxes or every current platform layout. Native permission prompts and long-duration real-time expiry still require the manual acceptance steps in DEVELOPMENT.md. The existing protection suite grants hosts only in its temporary fixture extension; the shipped package retains optional website/email access.
+
+The candidate has not been submitted to Chrome or deployed to Cloudflare. The public privacy page must receive the new topic/storage inventory before submission. Packaging is separate from publication.
+
+## Historical 0.3.21 validation
+
 # Release validation — 0.3.21
 
 Date: 29 October 2026. Environment: Windows, Node 24, pnpm 11, Chromium automated browser tests.

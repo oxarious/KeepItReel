@@ -231,7 +231,7 @@ test('monkey creator control blocks regular cards and Undo restores earlier choi
  await openVideo(p);const control=p.getByRole('button',{name:'Block creator @human',exact:true});
  await expect(control).toBeVisible();await expect(control).toHaveText('Block creator');await expect(p.locator('.email-trigger svg')).toHaveAttribute('aria-hidden','true');
  await openVideo(p);await control.click();await expect(p.locator('[data-cf-filter]')).toHaveCount(1);
- const toast=p.locator('clearfeed-undo');await expect(toast.getByRole('status')).toHaveText('Blocked @human in KeepItReel.');
+ const toast=p.locator('clearfeed-undo');await expect(toast.getByRole('status')).toHaveText('Blocked @human in KeepItReel. Until removed.');
  expect(await toast.evaluate(e=>e.matches(':popover-open'))).toBe(true);
  await toast.getByRole('button',{name:'Undo',exact:true}).click();await expect(p.locator('[data-cf-filter]')).toHaveCount(0);
  expect((await action({type:'get'})).rules.some((r:any)=>r.key==='@human')).toBe(false);

@@ -509,7 +509,7 @@ test('feedback export includes only reviewed diagnostics and voluntary notes', a
   expect(JSON.parse(json!).feedback.codes).toContain('destination-mismatch');
   for (const secret of ['private.example.com', 'secret-value', 'Private body', 'evil.test']) expect(json).not.toContain(secret);
   const downloaded = report.waitForEvent('download'); await report.getByRole('button', { name: 'Export feedback file' }).click();
-  const download = await downloaded; expect(download.suggestedFilename()).toBe('keepitreel-feedback-0.3.21.json');
+  const download = await downloaded; expect(download.suggestedFilename()).toBe(`keepitreel-feedback-${JSON.parse(fs.readFileSync(path.resolve('.output/chrome-mv3/manifest.json'), 'utf8')).version}.json`);
   expect(fs.readFileSync((await download.path())!, 'utf8')).toBe(json);
   expect(await report.evaluate(async () => Object.keys(await (globalThis as any).chrome.storage.session.get(null)).filter(k => k.startsWith('feedbackDraft')))).toEqual([]);
 });

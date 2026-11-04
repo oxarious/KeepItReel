@@ -8,6 +8,7 @@ import { createReportMark } from './report-mark';
 import { emailIndicatorCss, mountEmailIndicator } from './email-indicator';
 import { videoIndicator } from './video-indicator';
 import { toolbarReporter } from './toolbar-reporter';
+import { expiryFor, expiryLabel, nextRuleExpiry, ruleDurations, ruleIsActive, type RuleDuration } from './filter-rules';
 
 const pageCss = `
 [data-cf-filter="cover"] > :not(clearfeed-panel){visibility:hidden!important;pointer-events:none!important}
@@ -21,6 +22,8 @@ const shadowCss = `
 .bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:7px 0}.bar button{font-size:0.84615em;background:#f4f7f1}.bar .creator-button{display:inline-flex;align-items:center;justify-content:center;width:44px;min-width:44px;height:52px;padding:5px;border-radius:12px;background:#fffef9;box-shadow:0 2px 10px #102c2818}.creator-button svg{display:block;width:30px;height:40px;pointer-events:none}.panel{padding:20px;background:#f3f5ef;border:1px solid #d5dfd2;border-radius:12px;text-align:left;max-width:560px;width:100%;box-shadow:0 4px 20px #0a29100a}.brand{font-size:0.76923em;letter-spacing:.16em;text-transform:uppercase;color:#547362;font-weight:700}.reason{font-size:1.15385em;font-weight:650;margin:9px 0 4px}.detail{font-size:0.92308em;color:#5a6d61;margin:0 0 14px}.actions{display:flex;gap:8px;flex-wrap:wrap}.primary{background:#214e3b;color:#fff;border-color:#214e3b}.primary:hover{background:#31624d}.notice{font-size:0.84615em;color:#6b5741;margin-top:10px}.undo-toast{width:min(360px,calc(100vw - 36px));padding:14px;overflow-wrap:anywhere}.undo-toast p{margin:0 0 10px}
 .creator-button{display:inline-flex;align-items:center;justify-content:center;width:44px;min-width:44px;height:52px;padding:5px;border-radius:12px}.bar:empty{display:none}.flag-notice{width:300px;max-width:100%;border:1px solid #c0aa70;border-radius:8px;background:#faf5e8;color:#443919;overflow-wrap:anywhere}.flag-notice summary{cursor:pointer;padding:10px 12px;font-weight:650;line-height:1.4}.flag-notice summary:focus-visible{outline:3px solid #b98524;outline-offset:2px}.flag-body{padding:0 12px 12px;max-height:min(360px,50dvh);overflow:auto;overscroll-behavior:contain}.flag-list{padding-left:18px;margin:12px 0;font-size:.92308em;line-height:1.5}.flag-list li+li{margin-top:12px}.flag-list p{margin:4px 0 0}.flag-body .actions{margin-top:12px}
 :host([data-overlay]) .bar{justify-content:flex-end}
+.block-duration{font:inherit;color:inherit;background:var(--cf-cover);max-width:100%;padding:6px;border:1px solid currentColor;border-radius:6px}
+.block-duration:focus-visible{outline:3px solid #d5a641;outline-offset:3px}
 `;
 interface Mounted { record: FeedItem; host: HTMLElement; signature: string; originalPosition: string; positionTarget: HTMLElement; dispose?: () => void; }
 interface PendingUndo { kind: 'creator'; token: string; owner: string; name: string; revealedKeys: string[]; }
@@ -61,6 +64,7 @@ export async function startFeed(demoPlatform?: Platform) {
   const recorded = new Set<string>();
   const skipped = new Set<string>();
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let expiryTimer: ReturnType<typeof setTimeout> | undefined;
   let stopped = false;
   let lastSkip = 0;
   const style = document.createElement('style');
@@ -91,7 +95,7 @@ export async function startFeed(demoPlatform?: Platform) {
     if (toast.hasAttribute('popover') && !toast.matches(':popover-open')) toast.showPopover();
     if (focus) (entry ? toastUndo : toastDismiss).focus();
   }
-  async function block(record: FeedItem, control: HTMLButtonElement) {
+  async function block(record: FeedItem, control: HTMLButtonElement, duration: RuleDuration = 'permanent') {
     const { item, root } = record;
     if (!item.creator || item.platform === 'google') return;
     // Re-read identity at click time: Shorts and watch players are recycled in place.
@@ -101,9 +105,10 @@ export async function startFeed(demoPlatform?: Platform) {
     const owner = ownerKey(item);
     const entry: PendingUndo = { kind: 'creator', token: crypto.randomUUID(), owner, name: item.creator, revealedKeys: [...revealed].filter(([, value]) => value === owner).map(([key]) => key) };
     try {
-      state = await dispatch({ type: 'creatorBlock', platform: item.platform, key: item.creator, name: item.creatorName || item.creator, token: entry.token });
+      const expiresAt = expiryFor(duration);
+      state = await dispatch({ type: 'creatorBlock', platform: item.platform, key: item.creator, name: item.creatorName || item.creator, token: entry.token, expiresAt });
       undoByCreator.set(owner, entry); entry.revealedKeys.forEach(key => revealed.delete(key));
-      scan(); showToast(`Blocked ${entry.name} in KeepItReel.`, entry, true);
+      scan(); showToast(`Blocked ${entry.name} in KeepItReel. ${expiryLabel(expiresAt)}.`, entry, true);
     } catch (e) { showToast((e as Error).message); }
     finally { control.disabled = false; }
   }
@@ -151,16 +156,16 @@ export async function startFeed(demoPlatform?: Platform) {
   function render(record: FeedItem, spamFlags?: PostFlag[]) {
     const { root, item } = record;
     const key = cacheKey(item);
-    const result = decision(item, state, Date.now(), spamFlags);
+    const result = decision(item, state, Date.now(), spamFlags, item.platform === 'youtube' ? item.title : record.postText || item.title);
     // User rules and dismissed notices do not erase the evidence shown on request.
     const analysisFlags = decision(item, { ...state, rules: [] }, Date.now(), spamFlags).flags || [];
     const sampledText = (record.postText || item.title).trim();
     const textChecked = state.settings.spamChecks && spamFlags !== undefined && !!sampledText && !['YouTube video', 'YouTube Short'].includes(sampledText);
     const indicator = videoIndicator(analysisFlags, textChecked);
-    const blocked = state.rules.some(rule => rule.platform === item.platform && rule.key === item.creator && rule.action === 'block');
+    const blocked = state.rules.some(rule => ruleIsActive(rule) && rule.platform === item.platform && rule.key === item.creator && rule.action === 'block');
     const fingerprint = JSON.stringify([ownerKey(item), result.flags]);
     if (dismissedFlags.get(key) === fingerprint) {
-      result.flags = []; if (!blocked) result.filter = false;
+      result.flags = []; if (!blocked && !result.topic) result.filter = false;
     }
     const hiddenPost = hiddenPosts.get(key);
     const manuallyHidden = !!hiddenPost && (hiddenPost.owner === ownerKey(item) || hiddenPost.owner === `${item.platform}:`);
@@ -169,7 +174,7 @@ export async function startFeed(demoPlatform?: Platform) {
     const mode = manuallyHidden ? 'cover' : item.short && state.settings.mode === 'collapse' ? 'cover' : state.settings.mode;
     const undo = undoByCreator.get(ownerKey(item));
     const target = !filtering ? record.controlsRoot || root : root;
-    const signature = JSON.stringify([key, filtering, mode, result.reason, result.flags, analysisFlags, textChecked, record.postText || item.title, item.evidence?.label, state.settings.spamChecks, state.settings.showPageButton, item.creator, item.creatorName, state.settings.autoSkip, undo?.token, record.overlay]);
+    const signature = JSON.stringify([key, filtering, mode, result.reason, result.topic, result.flags, analysisFlags, textChecked, record.postText || item.title, item.evidence?.label, state.settings.spamChecks, state.settings.showPageButton, item.creator, item.creatorName, state.settings.autoSkip, undo?.token, record.overlay]);
     const old = mounted.get(root);
     if (old?.signature === signature && old.host.parentElement === target) { old.record = record; return; }
     if (old) { restore(old); mounted.delete(root); }
@@ -208,7 +213,16 @@ export async function startFeed(demoPlatform?: Platform) {
       for (const event of ['click', 'dblclick', 'pointerdown', 'mousedown', 'mouseup', 'keydown', 'keyup']) host.addEventListener(event, e => e.stopPropagation());
       actions.append(button('Hide video', () => { if (current()) { control.close(); hidePost(record); } }));
       if (item.creator && !blocked) {
-        const creator = button('Block creator', () => { if (current()) { control.close(); void block(record, creator); } });
+        const durationLabel = document.createElement('label');
+        durationLabel.textContent = 'Block duration ';
+        const durationSelect = document.createElement('select');
+        durationSelect.className = 'block-duration';
+        for (const choice of ruleDurations) {
+          const option = document.createElement('option'); option.value = choice.value; option.textContent = choice.label;
+          durationSelect.append(option);
+        }
+        durationLabel.append(durationSelect); actions.append(durationLabel);
+        const creator = button('Block creator', () => { if (current()) { control.close(); void block(record, creator, durationSelect.value as RuleDuration); } });
         creator.setAttribute('aria-label', `Block creator ${item.creator}`); actions.append(creator);
       } else {
         const unavailable = document.createElement('p'); unavailable.className = 'detail'; unavailable.textContent = blocked ? 'This creator is already on your blocklist.' : 'Creator identity is unavailable on this card. You can still hide the video.'; panel.append(unavailable);
@@ -227,13 +241,19 @@ export async function startFeed(demoPlatform?: Platform) {
       const brand = document.createElement('div'); brand.className = 'brand'; brand.textContent = 'KeepItReel';
       const reason = document.createElement('div'); reason.className = 'reason'; reason.textContent = result.reason!;
       const detail = document.createElement('p'); detail.className = 'detail';
-      detail.textContent = manuallyHidden ? 'This hides only this post in this tab. Your creator rules have not changed.' : blocked ? `You chose to filter ${item.creatorName || item.creator}.` : result.evidence ? 'This disclosure may include significant AI editing. It is not a claim that the entire video was generated.' : 'Hidden because you enabled automatic hiding for suspicious posts. Spam patterns do not prove fraud or AI authorship.';
+      detail.textContent = manuallyHidden ? 'This hides only this post in this tab. Your creator rules have not changed.' : blocked ? `You chose to filter ${item.creatorName || item.creator}.` : result.topic ? `Your phrase matched the supported title or caption. ${expiryLabel(result.topic.expiresAt)}. This is a personal filter preference.` : result.evidence ? 'This disclosure may include significant AI editing. It is not a claim that the entire video was generated.' : 'Hidden because you enabled automatic hiding for suspicious posts. Spam patterns do not prove fraud or AI authorship.';
       const actions = document.createElement('div'); actions.className = 'actions';
       actions.append(button(mode === 'label' ? 'Dismiss label' : 'Show once', () => {
         hiddenPosts.delete(key); revealed.set(key, ownerKey(item)); scan();
         // Restoring visibility does not unexpectedly start playback.
       }, true));
       if (item.creator) actions.append(button('Always allow', () => rule(record, 'allow')));
+      if (result.topic) {
+        const topicId = result.topic.id;
+        actions.append(button('Undo topic filter', () => {
+          void dispatch({ type: 'removeTopic', id: topicId }).then(next => { state = next; scan(); showToast('Topic filter removed. Other matching rules may still apply.', undefined, true); }).catch(error => showToast((error as Error).message));
+        }));
+      }
       if (blocked && undo) actions.append(button('Undo', () => { void undoBlock(undo); }));
       if (state.settings.showPageButton && !blocked && item.creator && item.platform !== 'google' && item.platform !== 'youtube') actions.append(monkey(record));
       if (item.short && record.next) actions.append(button('Next video', () => {
@@ -307,6 +327,7 @@ export async function startFeed(demoPlatform?: Platform) {
   function scan() {
     if (timer) clearTimeout(timer);
     timer = undefined;
+    clearTimeout(expiryTimer);
     if (stopped) return;
     if (!state.settings.enabled || !state.settings.platforms[platform!]) {
       mounted.forEach(restore); mounted.clear(); flagger.clear(); dismissToast(); toolbar.publish([], false); return;
@@ -319,6 +340,9 @@ export async function startFeed(demoPlatform?: Platform) {
     toolbar.publish(records.flatMap(record => decision(record.item, { ...state, rules: [] }, Date.now(), flags.get(cacheKey(record.item))).flags || []).map(f => f.code), records.length > 0);
     records.forEach(record => render(record, flags.get(cacheKey(record.item))));
     autoSkip();
+    // The worker can sleep. Each open feed refreshes at its next absolute expiry.
+    const expiry = nextRuleExpiry([...state.rules, ...state.topicRules]);
+    if (expiry !== undefined) expiryTimer = setTimeout(scan, Math.min(Math.max(0, expiry - Date.now()) + 25, 2_147_483_647));
   }
   function schedule() { if (!timer && !stopped) timer = setTimeout(scan, 180); }
   const observer = new MutationObserver(mutations => {
@@ -338,16 +362,18 @@ export async function startFeed(demoPlatform?: Platform) {
   };
   document.addEventListener('play', onPlay, true);
   document.addEventListener('yt-navigate-finish', schedule);
+  document.addEventListener('visibilitychange', schedule);
   window.addEventListener('popstate', schedule);
   window.addEventListener('scroll', schedule, { passive: true, capture: true });
   scan();
   return () => {
-    stopped = true; clearTimeout(timer); observer.disconnect(); unsubscribe();
+    stopped = true; clearTimeout(timer); clearTimeout(expiryTimer); observer.disconnect(); unsubscribe();
     toolbar.dispose();
     media.removeEventListener('change', updateThemes);
     mounted.forEach(restore); mounted.clear(); flagger.clear(); style.remove(); dismissToast();
     document.removeEventListener('play', onPlay, true);
     document.removeEventListener('yt-navigate-finish', schedule);
+    document.removeEventListener('visibilitychange', schedule);
     window.removeEventListener('popstate', schedule); window.removeEventListener('scroll', schedule, true);
   };
 }
